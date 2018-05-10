@@ -182,28 +182,6 @@ defmodule Access do
   @callback fetch(term :: t, key) :: {:ok, value} | :error
 
   @doc """
-  Invoked in order to access the value stored under `key` in the given term `term`,
-  defaulting to `default` if not present.
-
-  This function should return the value under `key` in `term` if there's
-  such key, otherwise `default`.
-
-  For most data structures, this can be implemented using `fetch/2` internally;
-  for example:
-
-      def get(structure, key, default) do
-        case fetch(structure, key) do
-          {:ok, value} -> value
-          :error -> default
-        end
-      end
-
-  See the `Map.get/3` and `Keyword.get/3` implementations for examples of
-  how to implement this callback.
-  """
-  @callback get(term :: t, key, default :: value) :: value
-
-  @doc """
   Invoked in order to access the value under `key` and update it at the same time.
 
   The implementation of this callback should invoke `fun` with the value under
@@ -329,41 +307,11 @@ defmodule Access do
   """
   @spec get(container, term, term) :: term
   @spec get(nil_container, any, default) :: default when default: var
-  def get(container, key, default \\ nil)
-
-  def get(%module{} = container, key, default) do
-    try do
-      module.fetch(container, key)
-    rescue
-      exception in UndefinedFunctionError ->
-        raise_undefined_behaviour(exception, module, {^module, :fetch, [^container, ^key], _})
-    else
+  def get(container, key, default \\ nil) do
+    case fetch(container, key) do
       {:ok, value} -> value
       :error -> default
     end
-  end
-
-  def get(map, key, default) when is_map(map) do
-    case map do
-      %{^key => value} -> value
-      _ -> default
-    end
-  end
-
-  def get(list, key, default) when is_list(list) and is_atom(key) do
-    case :lists.keyfind(key, 1, list) do
-      {_, value} -> value
-      false -> default
-    end
-  end
-
-  def get(list, key, _default) when is_list(list) do
-    raise ArgumentError,
-          "the Access calls for keywords expect the key to be an atom, got: " <> inspect(key)
-  end
-
-  def get(nil, _key, default) do
-    default
   end
 
   @doc """
